@@ -53,9 +53,15 @@ async def contact(
             msg["Subject"] = f"New inquiry from {name} — The Dark Pigeon"
             msg.attach(MIMEText(body, "plain"))
 
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
-                server.login(SMTP_USER, SMTP_PASS)
-                server.send_message(msg)
+            if SMTP_PORT == 465:
+                with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+                    server.login(SMTP_USER, SMTP_PASS)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+                    server.starttls()
+                    server.login(SMTP_USER, SMTP_PASS)
+                    server.send_message(msg)
             print(f"Email sent successfully to {NOTIFY_EMAIL}")
         except Exception as e:
             print(f"Email send failed: {e}")
