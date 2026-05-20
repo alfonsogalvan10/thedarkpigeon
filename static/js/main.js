@@ -182,6 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.textContent = originalText;
                         btn.disabled = false;
                     }, 5000);
+                } else {
+                    btn.textContent = 'Failed — try again';
+                    btn.disabled = false;
+                    setTimeout(() => { btn.textContent = originalText; }, 3000);
                 }
             } catch {
                 btn.textContent = originalText;
