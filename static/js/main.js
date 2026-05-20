@@ -168,12 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const formData = new FormData(form);
-                const response = await fetch('/contact', {
+                formData.append('access_key', '75f623d1-ef7e-47ad-a073-f6667342012b');
+                formData.append('subject', 'New inquiry — The Dark Pigeon');
+                formData.append('from_name', 'The Dark Pigeon Website');
+
+                const response = await fetch('https://api.web3forms.com/submit', {
                     method: 'POST',
                     body: formData
                 });
 
-                if (response.ok) {
+                const result = await response.json();
+
+                if (result.success) {
                     form.reset();
                     formSuccess.classList.add('show');
                     btn.textContent = 'Sent!';
