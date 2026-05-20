@@ -3,10 +3,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
-import smtplib
+import httpx
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,11 +14,7 @@ app = FastAPI(title="The Dark Pigeon")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-SMTP_HOST = os.getenv("SMTP_HOST", "")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-NOTIFY_EMAIL = "hello@thedarkpigeon.com"
+WEB3FORMS_KEY = os.getenv("WEB3FORMS_KEY", "75f623d1-ef7e-47ad-a073-f6667342012b")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -35,37 +29,25 @@ async def contact(
     company: str = Form(""),
     message: str = Form(...),
 ):
-    body = (
-        f"New inquiry from The Dark Pigeon website\n"
-        f"{'='*45}\n\n"
-        f"Name:    {name}\n"
-        f"Email:   {email}\n"
-        f"Company: {company or 'N/A'}\n\n"
-        f"Message:\n{message}\n"
-    )
+    payload = {
+        "access_key": WEB3FORMS_KEY,
+        "name": name,
+        "email": email,
+        "company": company or "N/A",
+        "message": message,
+        "subject": f"New inquiry from {name} — The Dark Pigeon",
+    }
 
-    if SMTP_HOST and SMTP_USER:
-        try:
-            msg = MIMEMultipart()
-            msg["From"] = SMTP_USER
-            msg["To"] = NOTIFY_EMAIL
-            msg["Reply-To"] = email
-            msg["Subject"] = f"New inquiry from {name} — The Dark Pigeon"
-            msg.attach(MIMEText(body, "plain"))
-
-            if SMTP_PORT == 465:
-                with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-                    server.login(SMTP_USER, SMTP_PASS)
-                    server.send_message(msg)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post("https://api.web3forms.com/submit", data=payload)
+            result = resp.json()
+            if result.get("success"):
+                print(f"Email sent to hello@thedarkpigeon.com via Web3Forms")
             else:
-                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-                    server.starttls()
-                    server.login(SMTP_USER, SMTP_PASS)
-                    server.send_message(msg)
-            print(f"Email sent successfully to {NOTIFY_EMAIL}")
-        except Exception as e:
-            print(f"Email send failed: {e}")
-            print(f"--- Logged inquiry ---\n{body}")
+                print(f"Web3Forms error: {result}")
+    except Exception as e:
+        print(f"Web3Forms request failed: {e}")
 
     return JSONResponse(
         {"status": "ok", "message": "Thank you. We'll be in touch within 24 hours."}
